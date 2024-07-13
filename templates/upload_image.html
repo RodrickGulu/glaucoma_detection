@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles_upload_image.css') }}">
+    <title>Upload Image</title>
+    <style>
+        .upload-form {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            cursor: pointer;
+            width: 300px;
+            height: 200px;
+            position: relative;
+        }
+
+        .file-text {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .file-icon {
+            font-size: 48px;
+            color: #ccc;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            object-fit: cover;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>GlaucoVision: Your Eye Health Predictor</h1>
+    </header>
+    <main>
+        <nav>
+            <ul class="rounded-breadcrumbs"> <!-- Update the class here -->
+                {% for breadcrumb in breadcrumbs %}
+                    {% if loop.last %}
+                        <li>{{ breadcrumb.text }}</li>
+                    {% else %}
+                        <li><a href="{{ breadcrumb.url }}">{{ breadcrumb.text }}</a></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <h3>Hello, {{ session['username']|upper }}!</h3>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('upload_image') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="upload-form">
+            <label for="file" class="file-label" id="file-label">
+                <input type="file" name="file" id="file" accept=".jpg, .png, .jpeg" class="file-input" style="display: none;">
+                <img id="preview" src="#" alt="Image Preview">
+                <span class="file-icon">+</span>
+                <span class="file-text">Drag and drop or click to upload</span>
+            </label>
+            <button type="submit" class="upload-button">Upload</button>
+        </form>
+    </main>
+    
+    <footer>
+        <p>&copy; {{year}} Rodrick Gulu</p>
+    </footer>
+
+    <script>
+        const fileLabel = document.getElementById('file-label');
+        const fileInput = document.getElementById('file');
+        const previewImage = document.getElementById('preview');
+        const fileText = fileLabel.querySelector('.file-text');
+        const fileIcon = fileLabel.querySelector('.file-icon');
+
+        // Prevent default behavior for dragover and drop events
+        fileLabel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        fileLabel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        // Update file label text and handle file input change event
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFile(file);
+        });
+
+        function handleFile(file) {
+            const fileName = file.name;
+            fileText.style.display = 'none';
+            fileIcon.style.display = 'none';
+            
+            // Show image preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.style.display = 'block';
+                previewImage.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>

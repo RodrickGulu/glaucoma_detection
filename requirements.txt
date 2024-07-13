@@ -1,0 +1,7 @@
+numpy==2.0.0
+opencv_python_headless==4.9.0.80
+Pillow==10.3.0
+pip==24.1
+tensorflow==2.16.1
+tensorflow_intel==2.16.1
+Werkzeug==3.0.3

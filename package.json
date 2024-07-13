@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "flask": "^0.2.10",
+    "requirements": "^2.0.1",
+    "vercel": "^34.2.0"
+  }
+}
