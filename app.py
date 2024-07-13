@@ -9,7 +9,6 @@ from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
 from model import load_modell, predict
 from retinal import predict_image
-from mask import preprocess_image, save_veins_masks
 from db import init_db, is_database_empty, authenticate, add_user
 from config import MODEL_PATH
 
