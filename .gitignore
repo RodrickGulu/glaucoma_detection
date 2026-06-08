@@ -1,1 +1,15 @@
 .vercel
+
+# Ignore local model files and upload artifacts that should be downloaded at runtime
+models/model.keras
+models/retinal.h5
+uploads/
+
+# Python artifacts
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env

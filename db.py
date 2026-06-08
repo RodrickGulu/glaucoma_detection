@@ -25,8 +25,14 @@ def init_db():
 def is_database_empty():
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT COUNT(*) FROM users")
-    count = cur.fetchone()[0]
+    try:
+        cur.execute("SELECT COUNT(*) FROM users")
+        count = cur.fetchone()[0]
+    except sqlite3.OperationalError as e:
+        if 'no such table' in str(e).lower():
+            init_db()
+            return True
+        raise
     return count == 0
 
 # Mock user database for demonstration purposes
