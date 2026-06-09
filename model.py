@@ -4,12 +4,19 @@ from tensorflow.keras.applications import VGG19
 from tensorflow.keras.models import Model, load_model
 import cv2
 
-# Load VGG19 model pretrained on ImageNet
-base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+_intermediate_layer_model = None
 
-# Create a new model that outputs the features from an intermediate layer
-layer_name = 'block5_conv4'  # You can choose any layer
-intermediate_layer_model = Model(inputs=base_model.input, outputs=base_model.get_layer(layer_name).output)
+
+def get_feature_model():
+    global _intermediate_layer_model
+    if _intermediate_layer_model is None:
+        base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+        layer_name = 'block5_conv4'
+        _intermediate_layer_model = Model(
+            inputs=base_model.input,
+            outputs=base_model.get_layer(layer_name).output,
+        )
+    return _intermediate_layer_model
 
 # Function to preprocess an image array
 def preprocess_image(img_array, target_size=(224, 224)):
@@ -20,13 +27,13 @@ def preprocess_image(img_array, target_size=(224, 224)):
 # Function to extract features from an image array
 def extract_features(img_array):
     img_preprocessed = preprocess_image(img_array)
-    features = intermediate_layer_model.predict(img_preprocessed, verbose=0)
+    features = get_feature_model().predict(img_preprocessed, verbose=0)
     return features
 
 # Perform prediction using the loaded model
 def predict(model, img_array):
     img_array = preprocess_image(img_array)
-    features = intermediate_layer_model.predict(img_array, verbose=0)
+    features = get_feature_model().predict(img_array, verbose=0)
     features = features.squeeze()
     features = np.expand_dims(features, axis=0)  # Expand dims for the prediction model
     predictions = model.predict(features)

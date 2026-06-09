@@ -2,8 +2,14 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications import ResNet50
 
-# Load pre-trained ResNet50 model trained on ImageNet (for feature extraction)
-base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+_base_model = None
+
+
+def get_base_model():
+    global _base_model
+    if _base_model is None:
+        _base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    return _base_model
 
 # Preprocess function for a single image
 def preprocess_image(image_input, target_size=(224, 224)):
@@ -37,7 +43,7 @@ def predict_image(image_input, model):
     img_array = preprocess_image(image_input)
 
     # Extract features using the ResNet50 base model
-    features = base_model.predict(img_array, verbose=0)
+    features = get_base_model().predict(img_array, verbose=0)
     features = features.reshape((features.shape[0], -1))
 
     # Make predictions using the trained model
