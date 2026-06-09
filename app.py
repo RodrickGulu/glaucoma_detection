@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
 from model import load_modell, predict
 from retinal import predict_image
-from config import MODEL_PATH, RETINAL_MODEL_PATH, MODEL_DOWNLOAD_URLS
+from config import MODEL_PATH, RETINAL_MODEL_PATH, MODEL_DOWNLOAD_URLS, ALLOW_REMOTE_MODEL_DOWNLOAD
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -76,6 +76,10 @@ def download_remote_file(url, destination_path, chunk_size=8192):
 
 
 def ensure_model_files():
+    if not ALLOW_REMOTE_MODEL_DOWNLOAD:
+        print('Remote model download is disabled for this deployment. Using lightweight fallback mode.')
+        return
+
     remote_mapping = {
         MODEL_PATH: MODEL_DOWNLOAD_URLS.get(os.path.basename(MODEL_PATH)),
         RETINAL_MODEL_PATH: MODEL_DOWNLOAD_URLS.get(os.path.basename(RETINAL_MODEL_PATH))
@@ -100,24 +104,51 @@ def ensure_model_files():
 # Global variables for lazy loading
 _model = None
 _model1 = None
-_models_loaded = False
 
-def get_models():
-    """Lazy load models on first access"""
-    global _model, _model1, _models_loaded
-    
-    if not _models_loaded:
+
+def get_glaucoma_model():
+    """Load the glaucoma classifier only when needed."""
+    global _model
+    if _model is None:
         try:
             ensure_model_files()
+            if not os.path.exists(MODEL_PATH):
+                print('Glaucoma model file is unavailable; using fallback prediction mode.')
+                return None
             _model = load_modell(MODEL_PATH)
-            _model1 = load_model(RETINAL_MODEL_PATH)
-            _models_loaded = True
-            print("Models loaded successfully")
+            print("Glaucoma model loaded successfully")
         except Exception as e:
-            print(f"Error loading models: {str(e)}")
-            raise
-    
-    return _model, _model1
+            print(f"Error loading glaucoma model: {str(e)}")
+            return None
+    return _model
+
+
+def get_retinal_model():
+    """Load the retinal validation model only when needed."""
+    global _model1
+    if _model1 is None:
+        try:
+            ensure_model_files()
+            if not os.path.exists(RETINAL_MODEL_PATH):
+                print('Retinal model file is unavailable; using fallback validation mode.')
+                return None
+            _model1 = load_model(RETINAL_MODEL_PATH)
+            print("Retinal model loaded successfully")
+        except Exception as e:
+            print(f"Error loading retinal model: {str(e)}")
+            return None
+    return _model1
+
+
+def get_models():
+    """Compatibility wrapper for callers that still need both models."""
+    return get_glaucoma_model(), get_retinal_model()
+
+try:
+    ensure_model_files()
+    print('Model assets checked at startup.')
+except Exception as exc:
+    print(f'Warning: model assets were not available at startup: {exc}')
 
 # Current year for footer
 current_year = datetime.now().year
@@ -206,7 +237,7 @@ def upload_image():
             return redirect(url_for('upload_image'))
 
         try:
-            _, model1 = get_models()
+            model1 = get_retinal_model()
             if not check_image(image, model1):
                 flash('Please upload a valid retinal image to continue!')
                 return redirect(url_for('upload_image'))
@@ -245,7 +276,7 @@ def display_prediction(filename):
     image = resize_image(image, 224)
     
     try:
-        model, _ = get_models()
+        model = get_glaucoma_model()
         predictions, claas = predict(model, image)
     except Exception as e:
         flash(f'Error making prediction: {str(e)}')

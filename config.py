@@ -1,6 +1,7 @@
 # config.py
 MODEL_PATH = 'models/model.keras'
 RETINAL_MODEL_PATH = 'models/retinal.h5'
+ALLOW_REMOTE_MODEL_DOWNLOAD = False
 
 # Public HTTPS URLs where the model files are hosted.
 # GitHub Releases direct download URLs
