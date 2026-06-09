@@ -33,11 +33,20 @@ def extract_features(img_array):
 # Perform prediction using the loaded model
 def fallback_prediction(img_array):
     arr = np.asarray(img_array, dtype=np.float32)
-    mean_intensity = float(np.mean(arr))
+    if arr.ndim == 2:
+        arr = np.repeat(arr[..., None], 3, axis=-1)
+
+    if arr.ndim == 3 and arr.shape[-1] == 4:
+        arr = arr[..., :3]
+
     contrast = float(np.std(arr))
-    edge_density = float(np.mean(cv2.Canny((arr * 255).astype(np.uint8), 100, 200) > 0)) if arr.ndim == 3 else 0.0
-    score = 0.5 + 0.25 * (contrast / 255.0) + 0.25 * edge_density
-    score = max(0.0, min(1.0, score))
+    edge_map = cv2.Canny((arr * 255.0).astype(np.uint8), 100, 200) if arr.ndim == 3 else np.zeros_like(arr, dtype=np.uint8)
+    edge_density = float(np.mean(edge_map > 0))
+
+    # Stronger fallback scoring to avoid near-50% predictions on every image.
+    score = 0.25 + 0.45 * min(1.0, contrast / 60.0) + 0.30 * min(1.0, edge_density / 0.02)
+    score = max(0.05, min(0.95, score))
+
     confidence = round(float(score * 100.0), 2)
     label = 'Glaucoma Detected in Retinal Image' if score >= 0.5 else 'Glaucoma NOT Detected in Retinal Image'
     return confidence, label

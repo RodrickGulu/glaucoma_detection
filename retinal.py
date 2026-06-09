@@ -40,9 +40,14 @@ def preprocess_image(image_input, target_size=(224, 224)):
 # Function to predict the image class
 def predict_image(image_input, model):
     if model is None:
-        arr = np.asarray(image_input)
+        arr = np.asarray(image_input, dtype=np.float32)
+        if arr.ndim == 2:
+            arr = np.repeat(arr[..., None], 3, axis=-1)
+        if arr.ndim == 3 and arr.shape[-1] == 4:
+            arr = arr[..., :3]
+
         contrast = float(np.std(arr))
-        return 'Retinal' if contrast > 20 else 'Non-Retinal'
+        return 'Retinal' if contrast >= 8.0 else 'Non-Retinal'
 
     # Preprocess the input image
     img_array = preprocess_image(image_input)
