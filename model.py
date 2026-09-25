@@ -1,5 +1,9 @@
-import cv2
 import numpy as np
+
+try:
+    import cv2
+except ImportError:  # pragma: no cover - OpenCV is optional for startup
+    cv2 = None
 
 try:
     import tensorflow as tf
@@ -51,8 +55,11 @@ def fallback_prediction(img_array):
         arr = arr[..., :3]
 
     contrast = float(np.std(arr))
-    edge_map = cv2.Canny((arr * 255.0).astype(np.uint8), 100, 200) if arr.ndim == 3 else np.zeros_like(arr, dtype=np.uint8)
-    edge_density = float(np.mean(edge_map > 0))
+    if cv2 is None:
+        edge_density = 0.0
+    else:
+        edge_map = cv2.Canny((arr * 255.0).astype(np.uint8), 100, 200) if arr.ndim == 3 else np.zeros_like(arr, dtype=np.uint8)
+        edge_density = float(np.mean(edge_map > 0))
 
     # Stronger fallback scoring to avoid near-50% predictions on every image.
     score = 0.25 + 0.45 * min(1.0, contrast / 60.0) + 0.30 * min(1.0, edge_density / 0.02)
