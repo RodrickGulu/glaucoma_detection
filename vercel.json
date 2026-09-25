@@ -9,7 +9,6 @@
       }
     }
   ],
-  "installCommand": "pip install -r requirements-vercel.txt",
   "routes": [
     {
       "src": "/(.*)",
