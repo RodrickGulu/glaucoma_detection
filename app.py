@@ -1,28 +1,44 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
 import os
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from datetime import datetime
+
+import numpy as np
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
 from PIL import Image
-from datetime import datetime
 from werkzeug.utils import secure_filename
-from tensorflow.keras.models import load_model
+
+try:
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+except ImportError:  # pragma: no cover - optional dependency during startup
+    requests = None
+    HTTPAdapter = None
+    Retry = None
+
+try:
+    from tensorflow.keras.models import load_model as tf_load_model
+except ImportError:  # pragma: no cover - TensorFlow is optional at runtime
+    tf_load_model = None
+
 from model import load_modell, predict
 from retinal import predict_image
 from config import MODEL_PATH, RETINAL_MODEL_PATH, MODEL_DOWNLOAD_URLS, ALLOW_REMOTE_MODEL_DOWNLOAD
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.config.update(
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'change-this-secret-key-in-production'),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production',
+    UPLOAD_FOLDER='uploads',
+    MASK_FOLDER='masks',
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB upload limit
+)
 
 # Define a directory to store uploaded files
-UPLOAD_FOLDER = 'uploads'
-MASK_FOLDER = 'masks'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MASK_FOLDER'] = MASK_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB upload limit
+UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
+MASK_FOLDER = app.config['MASK_FOLDER']
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
 
@@ -34,6 +50,9 @@ os.makedirs(app.config['MASK_FOLDER'], exist_ok=True)
 
 
 def download_remote_file(url, destination_path, chunk_size=8192):
+    if requests is None or Retry is None or HTTPAdapter is None:
+        raise RuntimeError('The requests dependency is not installed in this environment.')
+
     destination_dir = os.path.dirname(destination_path)
     os.makedirs(destination_dir, exist_ok=True)
 
@@ -128,11 +147,14 @@ def get_retinal_model():
     global _model1
     if _model1 is None:
         try:
+            if tf_load_model is None:
+                print('TensorFlow is not available in this environment; retinal validation is unavailable.')
+                return None
             ensure_model_files()
             if not os.path.exists(RETINAL_MODEL_PATH):
                 print('Retinal model file is unavailable; using fallback validation mode.')
                 return None
-            _model1 = load_model(RETINAL_MODEL_PATH)
+            _model1 = tf_load_model(RETINAL_MODEL_PATH)
             print("Retinal model loaded successfully")
         except Exception as e:
             print(f"Error loading retinal model: {str(e)}")
@@ -183,6 +205,8 @@ def resize_image(image, size):
 
 # Function to check if an image is retinal
 def check_image(img, model):
+    if model is None:
+        return False
     claasss = predict_image(img, model)
     return claasss == 'Retinal'
 
@@ -274,9 +298,12 @@ def display_prediction(filename):
         return redirect(url_for('upload_image'))
 
     image = resize_image(image, 224)
-    
+
     try:
         model = get_glaucoma_model()
+        if model is None:
+            flash('Model inference is unavailable in this environment because the ML dependencies are not installed or compatible.')
+            return redirect(url_for('upload_image'))
         predictions, claas = predict(model, image)
     except Exception as e:
         flash(f'Error making prediction: {str(e)}')
@@ -285,4 +312,4 @@ def display_prediction(filename):
     return render_template('prediction_display.html', predictions=predictions, classs=claas, filename=filename, image_url=image_url, breadcrumbs=breadcrumbs, year=current_year)
     
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

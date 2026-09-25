@@ -1,8 +1,15 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.applications import VGG19
-from tensorflow.keras.models import Model, load_model
 import cv2
+import numpy as np
+
+try:
+    import tensorflow as tf
+    from tensorflow.keras.applications import VGG19
+    from tensorflow.keras.models import Model, load_model
+except ImportError:  # pragma: no cover - TensorFlow is optional for startup
+    tf = None
+    VGG19 = None
+    Model = None
+    load_model = None
 
 _intermediate_layer_model = None
 
@@ -10,6 +17,8 @@ _intermediate_layer_model = None
 def get_feature_model():
     global _intermediate_layer_model
     if _intermediate_layer_model is None:
+        if VGG19 is None or Model is None or tf is None:
+            raise RuntimeError('TensorFlow is not available in this environment.')
         base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
         layer_name = 'block5_conv4'
         _intermediate_layer_model = Model(
@@ -20,6 +29,8 @@ def get_feature_model():
 
 # Function to preprocess an image array
 def preprocess_image(img_array, target_size=(224, 224)):
+    if tf is None:
+        raise RuntimeError('TensorFlow is not available in this environment.')
     img = np.expand_dims(img_array, axis=0)
     img = tf.keras.applications.vgg19.preprocess_input(img)
     return img
@@ -69,5 +80,7 @@ def predict(model, img_array):
 
 # Load the trained model with the best weights
 def load_modell(model_path):
+    if load_model is None:
+        raise RuntimeError('TensorFlow is not available in this environment.')
     model = load_model(model_path)
     return model

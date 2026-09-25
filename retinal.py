@@ -1,6 +1,11 @@
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.applications import ResNet50
+
+try:
+    import tensorflow as tf
+    from tensorflow.keras.applications import ResNet50
+except ImportError:  # pragma: no cover - TensorFlow is optional during startup
+    tf = None
+    ResNet50 = None
 
 _base_model = None
 
@@ -8,14 +13,19 @@ _base_model = None
 def get_base_model():
     global _base_model
     if _base_model is None:
+        if ResNet50 is None or tf is None:
+            raise RuntimeError('TensorFlow is not available in this environment.')
         _base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     return _base_model
 
 # Preprocess function for a single image
 def preprocess_image(image_input, target_size=(224, 224)):
+    if tf is None:
+        raise RuntimeError('TensorFlow is not available in this environment.')
+
     image_input = np.array(image_input)
-    
-     # Ensure the image has 3 channels
+
+    # Ensure the image has 3 channels
     if image_input.shape[-1] == 1:
         # Convert grayscale to RGB
         image_input = np.repeat(image_input, 3, axis=-1)
@@ -25,7 +35,7 @@ def preprocess_image(image_input, target_size=(224, 224)):
     elif image_input.shape[-1] == 4:
         # Convert 4-channel to 3-channel by dropping the alpha channel
         image_input = image_input[:, :, :3]
-    
+
     # Resize the image to the target size
     image_resized = tf.image.resize(image_input, target_size).numpy()
     
