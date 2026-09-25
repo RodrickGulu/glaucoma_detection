@@ -14,3 +14,7 @@ Supported storage options:
 - Google Cloud Storage
 - Azure Blob Storage
 - any HTTPS file host with direct download links
+
+### 🌐 Live Demo
+
+**[Visit Glaucoma Detection →](https://glaucoma-detection.vercel.app)**
