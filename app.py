@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 from datetime import datetime
 
 import numpy as np
@@ -31,8 +32,8 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production',
-    UPLOAD_FOLDER='uploads',
-    MASK_FOLDER='masks',
+    UPLOAD_FOLDER=os.path.join(tempfile.gettempdir(), 'glaucoma_uploads'),
+    MASK_FOLDER=os.path.join(tempfile.gettempdir(), 'glaucoma_masks'),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB upload limit
 )
 
@@ -250,12 +251,18 @@ def upload_image():
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        file.save(file_path)
+        try:
+            file.stream.seek(0)
+            file.save(file_path)
+        except Exception as exc:
+            flash(f'Unable to save uploaded image: {exc}')
+            return redirect(url_for('upload_image'))
 
         try:
             image = Image.open(file_path)
             image.verify()
             image = Image.open(file_path)
+            image.load()
         except Exception:
             flash('Uploaded file is not a valid image.')
             return redirect(url_for('upload_image'))
